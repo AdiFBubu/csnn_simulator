@@ -3,3 +3,5 @@ apps/TimeStream.cpp
 src/process/skeletonPose
 build/
 csnn-simulator-build/
+dataset/
+cmake-build-debug/
