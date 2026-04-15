@@ -68,13 +68,14 @@ class TimeObjectiveOutput : public OutputConverter {
 
 public:
     TimeObjectiveOutput();
-	TimeObjectiveOutput(Time t_obj);
-	TimeObjectiveOutput(Time t_obj, std::string exp_name, std::string layer_name, size_t save_timestamps = 0);
+	TimeObjectiveOutput(Time t_obj, int method = 0);
+	TimeObjectiveOutput(Time t_obj, std::string exp_name, std::string layer_name, size_t save_timestamps = 0, int method = 0);
 
 	virtual Tensor<float> process(const Tensor<float>& in);
 
 private:
 	Time _t_obj;
+    int _method;
 	// to save the data
 	size_t _save_timestamps;
 	std::string _exp_name;

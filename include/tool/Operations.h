@@ -215,4 +215,6 @@ void set_spike_coordinates(std::tuple<size_t, size_t, size_t, size_t> spike_coor
 
 std::vector<std::tuple<size_t, size_t, size_t, size_t>> get_spike_coordinates();
 
+Tensor<float> convertToVisualMap(const Tensor<Time>& sample);
+
 #endif

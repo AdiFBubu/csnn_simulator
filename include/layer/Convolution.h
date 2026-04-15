@@ -9,6 +9,8 @@
 #include "tool/Operations.h"
 #include "plot/Threshold.h"
 #include "plot/Evolution.h"
+#include "Sampler2D.h"
+
 // #include <execution>
 // #include <mutex>
 /**
@@ -98,6 +100,7 @@ namespace layer
 		virtual void train(const std::string &label, const std::vector<Spike> &input_spike, const Tensor<Time> &input_time, std::vector<Spike> &output_spike);
 		virtual void test(const std::string &label, const std::vector<Spike> &input_spike, const Tensor<Time> &input_time, std::vector<Spike> &output_spike);
 		virtual void on_epoch_end();
+		virtual void on_test_end();
 
 		virtual Tensor<float> reconstruct(const Tensor<float> &t) const;
 
@@ -106,7 +109,10 @@ namespace layer
 
 		virtual bool load_params(const std::string& filename);
 		virtual bool save_params(const std::string& filename);
-	private:
+
+        layer::ISampler2D* get_sampler() { return _sampler; }
+
+    private:
 		uint32_t _epoch_number;
 
 		uint32_t _current_epoch_number;
@@ -125,6 +131,7 @@ namespace layer
 
 		bool _draw;
 		bool _save_weights;
+        bool _draw_feature_maps;
 		bool _inhibition;
 		
 		Tensor<float> _w;
@@ -134,6 +141,8 @@ namespace layer
 		size_t _input_conv_depth;
 
 		bool _wta_infer;
+
+        ISampler2D *_sampler;
 
 		_priv::ConvolutionImpl _impl;
 	};

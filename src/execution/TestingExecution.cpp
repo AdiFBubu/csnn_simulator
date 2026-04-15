@@ -27,6 +27,26 @@ void TestingExecution::process(size_t refresh_interval) {
 			_experiment.log() << "Load trained parameters at " << process_load_path << std::endl;
 		}
 
+		// Load analysis parameters for outputs tied to this process
+		for (size_t o = 0; o < _experiment.output_count(); ++o) {
+			if (_experiment.output_at(o).index() == i) {
+				Output &output = _experiment.output_at(o);
+				for (Analysis *analysis : output.analysis()) {
+                    std::string full_output_name = output.name();
+                    size_t last_dash_idx = full_output_name.find_last_of('-');
+                    std::string short_name = (last_dash_idx != std::string::npos)
+                                             ? full_output_name.substr(last_dash_idx + 1)
+                                             : full_output_name;
+                    std::string analysis_load_path = _experiment.model_path() + "/" + short_name + "." + analysis->class_name() + "/";
+                    _experiment.log() << "Attempting to load analysis params from " << analysis_load_path << std::endl;
+					bool a_loaded = analysis->load_params(analysis_load_path);
+					if (a_loaded) {
+						_experiment.log() << "Load trained analysis parameters at " << analysis_load_path << std::endl;
+					}
+				}
+			}
+		}
+
 		_process_test_data(_experiment.process_at(i), _test_set);
 		_process_output(i);
 	}
@@ -76,22 +96,11 @@ void TestingExecution::_process_output(size_t index) {
 			}
 
 			for(Analysis* analysis : output.analysis()) {
-
-				_experiment.log() << output.name() << ", analysis " << analysis->class_name() << ":" << std::endl;
-
-				size_t n = analysis->train_pass_number();
-
-				if(n == 0) {
-					analysis->after_test();
+				analysis->before_test();
+				for(std::pair<std::string, Tensor<float>>& entry : output_test_set) {
+					analysis->process_test_sample(entry.first, entry.second);
 				}
-				else {
-					analysis->before_test();
-					for(std::pair<std::string, Tensor<float>>& entry : output_test_set) {
-						analysis->process_test_sample(entry.first, entry.second);
-					}
-					analysis->after_test();
-				}
-
+				analysis->after_test();
 			}
 		}
 	}

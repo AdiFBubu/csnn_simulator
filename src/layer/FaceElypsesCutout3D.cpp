@@ -37,7 +37,7 @@ FaceElypsesCutout3D::FaceElypsesCutout3D() : Layer4D(_register),
 
 FaceElypsesCutout3D::FaceElypsesCutout3D(size_t filter_number, size_t filter_width, size_t filter_height, size_t filter_depth, std::string model_path,
 							 size_t stride_x, size_t stride_y, size_t stride_k, size_t padding_x, size_t padding_y, size_t padding_k)
-	: Layer4D(_register, filter_number, filter_width, filter_height, filter_depth, stride_x, stride_y, stride_k, padding_x, padding_y, padding_k),
+	: Layer4D(_register, filter_width, filter_height, filter_depth, filter_number, stride_x, stride_y, stride_k, padding_x, padding_y, padding_k),
 	  _inhibition(true), _model_path(model_path), _draw(false), _save_weights(false), _save_random_start(false), _log_spiking_neuron(false), _annealing(1.0),
 	  _min_th(0), _t_obj(0), _lr_th(0), _sample_number(0), _sample_count(0), _spike_count(0), _drawn_weights(0), _saved_weights(0), _logged_spiking_neuron(0), _saved_random_start(0),
 	  _w(), _th(), _stdp(nullptr), _input_depth(0), _impl(*this)

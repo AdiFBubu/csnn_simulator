@@ -138,7 +138,7 @@ void Layer3D::forward(uint16_t x_in, uint16_t y_in, std::vector<std::tuple<uint1
 	{
 		for (size_t y = s_y; y <= l_y && y < _current_height; y++)
 		{
-			// w_x means weight_x coordicate
+			// w_x means weight_x coordinate
 			size_t w_x = x_in + _padding_x - x * _stride_x;
 			size_t w_y = y_in + _padding_y - y * _stride_y;
 

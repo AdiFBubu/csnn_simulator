@@ -12,6 +12,7 @@
 #include "plot/Evolution.h"
 #include <thread> // std::this_thread::sleep_for
 #include <chrono>
+#include "Sampler3D.h"
 
 namespace layer
 {
@@ -123,6 +124,11 @@ namespace layer
 		void plot_threshold(bool only_in_train);
 		void plot_evolution(bool only_in_train);
 
+        layer::ISampler3D* get_sampler() { return _sampler; }
+
+        virtual bool load_params(const std::string& filename);
+        virtual bool save_params(const std::string& filename);
+
 	private:
 		uint32_t _epoch_number;
 		uint32_t _current_epoch_number;
@@ -145,10 +151,13 @@ namespace layer
 		float _t_obj;
 		float _lr_th;
 		bool _draw;					// A flag to indicate if the user wants to print the weights as a JSOn file + images to see them
-		bool _patch_coo_collection; // A flag that if true gets the patches from a set of coordinated and not randomly
+        bool _draw_feature_maps;
+        bool _patch_coo_collection; // A flag that if true gets the patches from a set of coordinated and not randomly
 		bool _log_spiking_neuron;	// A flag to log a json file of the activations (which neuron fired for which feature)
 		bool _save_weights;
 		bool _save_random_start;
+
+        ISampler3D *_sampler; // A pointer to the interface of the sampler, which is responsible for sampling patches from the input data. If it's null, the patches are sampled randomly.
 
 		bool _inhibition;
 		std::string _model_path;

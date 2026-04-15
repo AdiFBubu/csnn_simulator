@@ -1167,3 +1167,53 @@ std::vector<std::tuple<size_t, size_t, size_t, size_t>> get_spike_coordinates()
 {
     return spike_coordinates;
 }
+
+Tensor<float> convertToVisualMap(const Tensor<Time>& sample) {
+    float manual_max_t = -1.0f;
+
+    auto shape = sample.shape();
+    size_t size = shape.product();
+    Tensor<float> visual_map(shape);
+
+    Time min_t = INFINITE_TIME;
+    Time max_t = 0;
+
+    // 1. Find the global min/max across the ENTIRE tensor (all filters)
+    for(size_t i = 0; i < size; ++i) {
+        Time t = sample.at_index(i);
+        if (t != INFINITE_TIME) {
+            if (t < min_t) min_t = t;
+            if (t > max_t) max_t = t;
+        }
+    }
+
+    // 2. Fallback: If no spikes occurred at all
+    if (min_t == INFINITE_TIME) {
+        std::fill(visual_map.begin(), visual_map.end(), 0.0f);
+        return visual_map;
+    }
+
+    // 3. Optional: Use a fixed simulation time for absolute comparison
+    // If you know your simulation runs from 0 to 100ms, use that instead of the data's max.
+    float final_max = (manual_max_t > 0) ? manual_max_t : (float)max_t;
+    float final_min = (manual_max_t > 0) ? 0.0f : (float)min_t;
+
+    // 4. Map to [0, 1] using global bounds
+    for(size_t i = 0; i < size; ++i) {
+        Time t = sample.at_index(i);
+        if (t == INFINITE_TIME) {
+            visual_map.at_index(i) = 0.0f;
+        } else {
+            if (final_max == final_min) {
+                visual_map.at_index(i) = 1.0f;
+            } else {
+                // Latency Coding: Earliest (min_t) -> 1.0 (White), Latest (max_t) -> 0.1 (Dark Gray)
+                float normalized = 1.0f - (float)(t - final_min) / (final_max - final_min + 1e-6);
+
+                // Ensure we don't get negative values if t > manual_max_t
+                visual_map.at_index(i) = std::max(0.0f, normalized);
+            }
+        }
+    }
+    return visual_map;
+}

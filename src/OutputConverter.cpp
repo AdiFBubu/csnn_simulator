@@ -26,60 +26,82 @@ void OutputConverter::process_test_sample(const std::string&, Tensor<float>& sam
 
 static RegisterClassParameter<TimeObjectiveOutput, OutputConverterFactory> _register_1("TimeObjectiveOutput");
 
-TimeObjectiveOutput::TimeObjectiveOutput() : OutputConverter(_register_1), _t_obj(0) {
+TimeObjectiveOutput::TimeObjectiveOutput() : OutputConverter(_register_1), _t_obj(0), _method(0) {
     add_parameter("t_obj", _t_obj);
+    add_parameter("method", _method); // 0: Gaussian, 1: Inverse, 2: Threshold
 }
 
-
-TimeObjectiveOutput::TimeObjectiveOutput(Time t_obj) : TimeObjectiveOutput() {
+TimeObjectiveOutput::TimeObjectiveOutput(Time t_obj, int method) : TimeObjectiveOutput() {
     parameter<float>("t_obj").set(t_obj);
+    parameter<int>("method").set(method);
 }
 
-TimeObjectiveOutput::TimeObjectiveOutput(Time t_obj, std::string exp_name, std::string layer_name, size_t save_timestamps) : TimeObjectiveOutput()
+TimeObjectiveOutput::TimeObjectiveOutput(Time t_obj, std::string exp_name, std::string layer_name, size_t save_timestamps, int method) : TimeObjectiveOutput()
 {
-	parameter<float>("t_obj").set(t_obj);
-	_save_timestamps = save_timestamps;
-	if (save_timestamps == 1)
-	{
-		_exp_name = exp_name;
-		_layer_name = layer_name;
-		std::filesystem::create_directories("SaveFeatures/" + _exp_name + "/");
-		_file_path = std::filesystem::current_path();
-	}
+    parameter<float>("t_obj").set(t_obj);
+    parameter<int>("method").set(method);
+    _save_timestamps = save_timestamps;
+    if (save_timestamps == 1)
+    {
+        _exp_name = exp_name;
+        _layer_name = layer_name;
+        std::filesystem::create_directories("SaveFeatures/" + _exp_name + "/");
+        _file_path = std::filesystem::current_path();
+    }
 }
 
 
 Tensor<float> TimeObjectiveOutput::process(const Tensor<Time>& in) {
-	Tensor<float> out(in.shape());
+    Tensor<float> out(in.shape());
+    size_t size = in.shape().product();
 
-	const double miu = _t_obj;      // center
-	const double sigma = 0.05;      // spread (adjust if needed)
-	const double inv_sqrt2 = 1.0 / 1.4142135623730951;
+    for (size_t i = 0; i < size; i++) {
+        Time t = in.at_index(i);
 
-	size_t size = in.shape().product();
-	for (size_t i = 0; i < size; i++) {
+        if (t == INFINITE_TIME) {
+            out.at_index(i) = 0.0f;
+            continue;
+        }
 
-		//V INVERSE
-		//out.at_index(i) = t == INFINITE_TIME ? 0.0 : std::min<Time>(1.0, std::max<Time>(0.0, 1.0-(t-_t_obj)/(1.0-_t_obj)));
+        float result = 0.0f;
 
-		//V THRESHOLD
-		//out.at_index(i) = t == INFINITE_TIME ? 0.0 : ((t>_t_obj+0.1 || t < _t_obj - 0.1) ? 0.0 : 1.0);
+        switch (_method) {
+            case 1: // INVERSE
+            {
+                // formula: 1 - (t - t_obj) / (1 - t_obj)
+                float diff = t - _t_obj;
+                float range = 1.0f - _t_obj;
+                result = (range <= 0) ? 0.0f : 1.0f - (diff / range);
+                if (result < 0.0f) result = 0.0f;
+                if (result > 1.0f) result = 1.0f;
+                break;
+            }
 
-		Time t = in.at_index(i);
-		if (t == INFINITE_TIME) {
-			out.at_index(i) = 0.0f;
-			continue;
-		}
+            case 2: // THRESHOLD
+            {
+                // window of 0.1 in both directions
+                result = (t > _t_obj + 0.1f || t < _t_obj - 0.1f) ? 0.0f : 1.0f;
+                break;
+            }
 
-		double z = (t - miu) / (sigma * 1.4142135623730951); // (t-miu)/(sigma*sqrt(2))
-		double cdp = 0.5 * (1.0 + std::erf(z));
-		double closeness = std::fabs(0.5 - cdp);
-		double importance = 1.0 - 2.0 * closeness; // already in [0,1]
-		if (importance < 0.0) importance = 0.0;   // numerical safety
-		out.at_index(i) = static_cast<float>(importance);
-	}
+            case 0: // GAUSSIAN (Default)
+            default:
+            {
+                const double miu = _t_obj;
+                const double sigma = 0.05;
+                double z = (t - miu) / (sigma * 1.4142135623730951);
+                double cdp = 0.5 * (1.0 + std::erf(z));
+                double closeness = std::fabs(0.5 - cdp);
+                double importance = 1.0 - 2.0 * closeness;
+                result = static_cast<float>(importance < 0.0 ? 0.0 : importance);
+                break;
+            }
+        }
 
-	return out;
+        out.at_index(i) = result;
+    }
+
+    return out;
 }
 
 //

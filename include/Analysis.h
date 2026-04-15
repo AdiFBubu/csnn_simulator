@@ -55,6 +55,9 @@ public:
 		return _layer_index;
 	}
 
+    virtual bool load_params(const std::string&) { return false; } // To load trained parameters of the process (if it has any)
+    virtual bool save_params(const std::string&) { return false; } // To save trained parameters of the process (if it has any)
+
 private:
 	const AbstractExperiment* _experiment;
 	size_t _layer_index;

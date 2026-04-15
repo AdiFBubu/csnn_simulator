@@ -47,8 +47,9 @@ int main(int argc, char **argv)
 
 	auto &conv1 = experiment.push<layer::Convolution>(5, 5, 32); 
 	conv1.set_name("conv1");
-	conv1.parameter<bool>("draw").set(false);
-	conv1.parameter<bool>("save_weights").set(false);
+	conv1.parameter<bool>("draw").set(true);
+	conv1.parameter<bool>("draw_feature_maps").set(true);
+	conv1.parameter<bool>("save_weights").set(true);
 	conv1.parameter<bool>("inhibition").set(true);
 	conv1.parameter<uint32_t>("epoch").set(100);
 	conv1.parameter<float>("annealing").set(0.95f);
@@ -63,10 +64,11 @@ int main(int argc, char **argv)
 	auto &pool1 = experiment.push<layer::Pooling>(2, 2, 2, 2);
 	pool1.set_name("pool1");
 
-	auto &conv2 = experiment.push<layer::Convolution>(5, 5, 128);
+	auto &conv2 = experiment.push<layer::Convolution>(5, 5, 64);
 	conv2.set_name("conv2");
 	conv2.parameter<bool>("draw").set(false);
-	conv2.parameter<bool>("save_weights").set(false);
+    conv2.parameter<bool>("draw_feature_maps").set(true);
+    conv2.parameter<bool>("save_weights").set(false);
 	conv2.parameter<bool>("inhibition").set(true);
 	conv2.parameter<uint32_t>("epoch").set(100);
 	conv2.parameter<float>("annealing").set(0.95f);
@@ -84,7 +86,8 @@ int main(int argc, char **argv)
 	auto &fc1 = experiment.push<layer::Convolution>(4, 4, 4096);
 	fc1.set_name("fc1");
 	fc1.parameter<bool>("draw").set(false);
-	fc1.parameter<bool>("save_weights").set(false);
+    fc1.parameter<bool>("draw_feature_maps").set(false);
+    fc1.parameter<bool>("save_weights").set(false);
 	fc1.parameter<bool>("inhibition").set(true);
 	fc1.parameter<uint32_t>("epoch").set(100);
 	fc1.parameter<float>("annealing").set(0.95f);

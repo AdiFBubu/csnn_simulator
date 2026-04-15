@@ -7,6 +7,17 @@
 #include "Input.h"
 #include "Tensor.h"
 #include "Spike.h"
+#include "layer/Sampler3D.h"
+
+#include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/objdetect.hpp>
+#include <opencv2/calib3d.hpp>
+#include <opencv2/video.hpp>
+#include <iostream>
+#include <filesystem>
+#include <algorithm>
 
 namespace dataset {
 
@@ -20,21 +31,33 @@ public:
         int ipostase = 0;
         int emotion = 0;
         std::vector<std::shared_ptr<Tensor<float>>> frames;
+        std::vector<layer::BBox> bboxes;
     };
     
     // Emotion mapping constants
     enum Emotion {
-        HAPPY = 1,
-        FEAR = 2,
-        SURPRISE = 3,
-        ANGER = 4,
-        DISGUST = 5,
-        SADNESS = 6
+        // entire dataset
+        ANGER = 1,
+        CONTEMPT = 2,
+        DISGUST = 3,
+        FEAR = 4,
+        HAPPINESS = 5,
+        SADNESS = 6,
+        SURPRISE = 7,
+
+        // cropped dataset
+//        HAPPY = 1,
+//        FEAR = 2,
+//        SURPRISE = 3,
+//        ANGER = 4,
+//        DISGUST = 5,
+//        SADNESS = 6
+
     };
     
-    CK_Plus(const std::string& csv_path, const std::string& images_dir, 
+    CK_Plus(const std::string& csv_path, const std::string& images_dir,
             int num_folds = 10, unsigned int random_seed = 42, 
-            int image_width = 48, int image_height = 48);
+            int image_width = 48, int image_height = 48, bool roi_detection = false, const std::string& landmarks_dir = "");
     ~CK_Plus();
 
     // Core dataset functions
@@ -60,9 +83,11 @@ private:
     // Configuration
     std::string m_csv_path;
     std::string m_images_dir;
+    std::string m_landmarks_dir;
     int m_image_width;
     int m_image_height;
     int m_num_folds;
+    bool m_roi_detection;
     unsigned int m_random_seed;
     
     // Data structure: fold -> emotion -> sequences
@@ -70,9 +95,17 @@ private:
 
     // Internal helper methods
     std::shared_ptr<Tensor<float>> loadImage(const std::string& path, bool verbose = false);
-    std::vector<std::shared_ptr<Tensor<float>>> loadImageSequence(
-        const std::string& subject, int ipostase, bool verbose = false);
+    void populateSequenceData(ImageSequence& seq, bool verbose);
     void distributeSequences(std::vector<ImageSequence>& sequences);
+    std::shared_ptr<Tensor<float>> convertMatToTensor(cv::Mat& image);
+    bool initFaceTracking(const cv::Mat& first_gray, cv::CascadeClassifier& face_cascade,
+                                   std::vector<cv::Point2f>& out_pts, std::vector<cv::Point2f>& out_bounding_box);
+    bool updateFaceTracking(const cv::Mat& prev_gray, const cv::Mat& curr_gray,
+                                     std::vector<cv::Point2f>& in_out_pts,
+                                     std::vector<cv::Point2f>& in_out_bounding_box);
+    std::shared_ptr<Tensor<float>> convertFullImageToTensor(const cv::Mat& img_gray);
+    std::vector<std::shared_ptr<Tensor<float>>> loadTrackedSequence(const std::vector<std::filesystem::path>& file_paths,
+            cv::CascadeClassifier& face_cascade, std::vector<layer::BBox>& out_bboxes);
 };
 
 // Standalone input class for CK+ dataset

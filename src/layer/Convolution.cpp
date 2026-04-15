@@ -9,11 +9,12 @@ using namespace layer;
 static RegisterClassParameter<Convolution, LayerFactory> _register("Convolution");
 
 Convolution::Convolution() : Layer3D(_register),
-							 _inhibition(true), _draw(false), _epoch_number(0), _annealing(1.0), _min_th(0), _t_obj(0), _lr_th(0),
-							 _w(), _th(), _stdp(nullptr), _input_depth(0), _wta_infer(false), _impl(*this)
+							 _inhibition(true), _draw(false), _draw_feature_maps(false),_epoch_number(0), _annealing(1.0), _min_th(0), _t_obj(0), _lr_th(0),
+							 _w(), _th(), _stdp(nullptr), _input_depth(0), _wta_infer(false), _impl(*this), _sampler(nullptr)
 {
 	add_parameter("draw", _draw);
 	add_parameter("save_weights", _save_weights);
+    add_parameter("draw_feature_maps", _draw_feature_maps);
 	add_parameter("inhibition", _inhibition);
 	add_parameter("epoch", _epoch_number);
 	add_parameter("annealing", _annealing, 1.0f);
@@ -28,15 +29,18 @@ Convolution::Convolution() : Layer3D(_register),
 	add_parameter("wta_infer", _wta_infer);
 
 	add_parameter("stdp", _stdp);
+
+    add_parameter("sampler", _sampler);
 }
 
 Convolution::Convolution(size_t filter_width, size_t filter_height, size_t filter_number,
 						 size_t stride_x, size_t stride_y, size_t padding_x, size_t padding_y) : Layer3D(_register, filter_width, filter_height, filter_number, stride_x, stride_y, padding_x, padding_y),
-																								 _inhibition(true), _draw(false), _save_weights(false), _annealing(1.0), _min_th(0), _t_obj(0), _lr_th(0), _sample_number(0), _sample_count(0),
-																								 _w(), _th(), _stdp(nullptr), _input_depth(0), _wta_infer(false), _impl(*this)
+																								 _inhibition(true), _draw(false), _draw_feature_maps(false), _save_weights(false), _annealing(1.0), _min_th(0), _t_obj(0), _lr_th(0), _sample_number(0), _sample_count(0),
+																								 _w(), _th(), _stdp(nullptr), _input_depth(0), _wta_infer(false), _impl(*this), _sampler(nullptr)
 {
 	add_parameter("draw", _draw);
 	add_parameter("save_weights", _save_weights);
+    add_parameter("draw_feature_maps", _draw_feature_maps);
 
 	add_parameter("inhibition", _inhibition);
 	add_parameter("epoch", _epoch_number);
@@ -52,6 +56,8 @@ Convolution::Convolution(size_t filter_width, size_t filter_height, size_t filte
 	add_parameter("wta_infer", _wta_infer);
 
 	add_parameter("stdp", _stdp);
+
+    add_parameter("sampler", _sampler);
 
 	parameter<Tensor<float>>("w").shape(0);
 	parameter<Tensor<float>>("th").shape(0);
@@ -126,6 +132,7 @@ size_t Convolution::train_pass_number() const {
 }
 
 void Convolution::process_train_sample(const std::string& label, Tensor<float>& sample, size_t current_pass, size_t current_index, size_t number) {
+	_current_epoch_number = static_cast<uint32_t>(current_pass);
 
 	if(current_index == 0) {
 		if(current_pass < _epoch_number) {
@@ -183,11 +190,22 @@ void Convolution::process_train_sample(const std::string& label, Tensor<float>& 
 		test(label, input_spike, sample, output_spike);
 		sample = Tensor<float>(shape());
 		SpikeConverter::from_spike(output_spike, sample);
-	}
+
+//        if (_draw_feature_maps && current_index >= 190) {
+//
+//            Tensor<float> converted_sample = convertToVisualMap(sample); // time conversion to intensity [0-255]
+//
+//            std::filesystem::create_directories(_file_path + "/FMs/" + "layer_" + std::to_string(index()) + "/" + label + "/" + std::to_string(current_index) + "/");
+//            Tensor<float>::draw_feature_grid(_file_path + "/FMs/" + "layer_" + std::to_string(index()) + "/" + label + "/" + std::to_string(current_index) + "/", converted_sample);
+//        }
+    }
 
 	if(current_index == number-1 && current_pass < _epoch_number) {
 		on_epoch_end();
 	}
+    else if (current_index == number-1 && current_pass == _epoch_number) {
+//        on_test_end();
+    }
 }
 
 void Convolution::process_test_sample(const std::string& label, Tensor<float>& sample, size_t current_index, size_t number) {
@@ -218,6 +236,11 @@ void Convolution::test(const std::string&, const std::vector<Spike>& input_spike
 void Convolution::on_epoch_end() {
 	_lr_th *= _annealing;
 	_stdp->adapt_parameters(_annealing);
+}
+
+void Convolution::on_test_end() {
+    std::filesystem::create_directories(_file_path + "/Weights/");
+    Tensor<float>::draw_weight_tensor(_file_path + "/Weights/all_weights", _w);
 }
 
 Tensor<float> Convolution::reconstruct(const Tensor<float>& t) const {
@@ -545,6 +568,7 @@ void _priv::ConvolutionImpl::resize()
 {
 	_a = Tensor<float>(Shape({_model.width(), _model.height(), _model.depth()}));
 	_inh = Tensor<bool>(Shape({_model.width(), _model.height(), _model.depth()}));
+    _wta = Tensor<bool>(Shape({_model.width(), _model.height()}));
 }
 
 void _priv::ConvolutionImpl::train(const std::string &label, const std::vector<Spike> &input_spike, const Tensor<Time> &input_time,

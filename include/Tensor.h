@@ -15,7 +15,7 @@
 #include <opencv2/video.hpp>
 #include <opencv2/ml.hpp>
 
-#include "dep/ArduinoJson-v6.17.3.h"
+#include "../dep/ArduinoJson-v6.17.3.h"
 
 #include "Debug.h"
 
@@ -1503,51 +1503,47 @@ public:
 	 *
 	 * @param in The Tensor of float.
 	 */
-	static void draw_weight_tensor(std::string draw_folder_path, const Tensor<float> &in)
-	{
-		size_t _height = in.shape().dim(0);
-		size_t _width = in.shape().dim(1);
-		size_t _depth = in.shape().dim(2);
-		size_t _Weights_Number = in.shape().dim(3);
-		size_t _conv_depth = in.shape().number() > 4 ? in.shape().dim(4) : 1;
+    static void draw_weight_tensor(std::string draw_folder_path, const Tensor<float> &in)
+    {
+        size_t _height = in.shape().dim(0); // 5
+        size_t _width = in.shape().dim(1);  // 5
+        size_t _depth = in.shape().dim(2);  // 2 (On/Off)
+        size_t _Weights_Number = in.shape().dim(3);
+        size_t _conv_depth = in.shape().number() > 4 ? in.shape().dim(4) : 1;
 
-		cv::Size _frame_size(500, 500);
-		// CONV_DEPTH by being incremented every frame.
-		if (in.shape().number() > 4)
-			// looping over the number of filters
-			for (size_t _w = 0; _w < _Weights_Number; _w++)
-			{
-				cv::Mat frame(_height, _width, CV_32FC3);
-				// looping over temporal depth -> video frames
-				for (size_t conv = 0; conv < _conv_depth; conv++)
-					// lopping over the image
-					for (size_t i = 0; i < _height; i++)
-						for (size_t j = 0; j < _width; j++)
-							for (size_t k = 0; k < _depth; k++) // depth is always 2 = OnOffChannels
-							{
-								frame.at<cv::Vec3f>(i, j)[k] = in.at(i, j, k, _w, conv) * 255;
-							}
-				if (_depth < 4)
-					cv::resize(frame, frame, _frame_size);
-				imwrite(draw_folder_path + "_W:" + std::to_string(_w) + ".png", frame);
-			}
-		else
-			// 2D
-			for (size_t _w = 0; _w < _Weights_Number; _w++)
-			{
-				cv::Mat frame(_height, _width, CV_32FC3);
-				for (size_t conv = 0; conv < _conv_depth; conv++)
-					for (size_t i = 0; i < _height; i++)
-						for (size_t j = 0; j < _width; j++)
-							for (size_t k = 0; k < _depth; k++)
-							{
-								frame.at<cv::Vec3f>(i, j)[k] = in.at(i, j, k, _w) * 255;
-							}
+        cv::Size individual_size(200, 200);
 
-				cv::resize(frame, frame, _frame_size);
-				imwrite(draw_folder_path + "_W:" + std::to_string(_w) + ".png", frame);
-			}
-	}
+        int cols = std::ceil(std::sqrt(_Weights_Number));
+        int rows = std::ceil((double)_Weights_Number / cols);
+
+        cv::Mat canvas(rows * individual_size.height, cols * individual_size.width, CV_32FC3, cv::Scalar(0,0,0));
+
+        for (size_t _w = 0; _w < _Weights_Number; _w++)
+        {
+            cv::Mat small_frame(_height, _width, CV_32FC3, cv::Scalar(0,0,0));
+
+            size_t last_conv = _conv_depth - 1;
+
+            for (size_t i = 0; i < _height; i++) {
+                for (size_t j = 0; j < _width; j++) {
+                    for (size_t k = 0; k < _depth && k < 3; k++) {
+                        float val = (in.shape().number() > 4) ? in.at(i, j, k, _w, last_conv) : in.at(i, j, k, _w);
+                        small_frame.at<cv::Vec3f>(i, j)[k] = val * 255.0f;
+                    }
+                }
+            }
+
+            cv::Mat resized_frame;
+            cv::resize(small_frame, resized_frame, individual_size, 0, 0, cv::INTER_LINEAR);
+
+            int r = _w / cols;
+            int c = _w % cols;
+            cv::Rect roi(c * individual_size.width, r * individual_size.height, individual_size.width, individual_size.height);
+            resized_frame.copyTo(canvas(roi));
+        }
+
+        imwrite(draw_folder_path + "_N01_all_kernels_SMOOTH.png", canvas);
+    }
 
 	/**
 	 * @brief This function takes a tensor and returns one opencv matrix.
@@ -1887,6 +1883,32 @@ public:
 			throw std::runtime_error("Tensor load: unkown flag");
 		}
 	}
+
+    static void log_spike_histogram(const std::string& label, const std::vector<Spike>& spikes, float bin_size = 0.2f)
+    {
+        if (spikes.empty()) return;
+
+        int num_bins = static_cast<int>(std::ceil(1.0f / bin_size));
+        std::vector<int> bins(num_bins, 0);
+
+        for (const auto& s : spikes) {
+            int bin_idx = std::min(num_bins - 1, static_cast<int>(s.time / bin_size));
+            if (bin_idx >= 0) {
+                bins[bin_idx]++;
+            }
+        }
+
+        std::cout << "--- Spike Histogram [" << label << "] (Total: " << spikes.size() << ") ---" << std::endl;
+        for (int i = 0; i < num_bins; ++i) {
+            float start = i * bin_size;
+            float end = (i + 1) * bin_size;
+
+            std::string bar(bins[i] / 50, '#'); // a '#' for each 50 spikes
+
+            printf("[%3.1f - %3.1f]: %6d spikes %s\n", start, end, bins[i], bar.c_str());
+        }
+        std::cout << "--------------------------------------------------------" << std::endl;
+    }
 
 private:
 	Shape _shape;

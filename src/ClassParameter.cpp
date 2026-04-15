@@ -110,11 +110,16 @@ const std::string& ClassParameter::class_name() const {
 }
 
 void ClassParameter::_initialize(std::default_random_engine& random_engine) {
-    for(const auto& entry : _parameters) {
-		if(!entry.second->_initialize(random_engine)) {
-			throw std::runtime_error("Uninitialized parameter \""+entry.first+"\" in "+_registration.factory_name()+"."+_registration.class_name());
+	for(const auto& entry : _parameters) {
+		try {
+			if(!entry.second->_initialize(random_engine)) {
+				throw std::runtime_error("Uninitialized parameter \""+entry.first+"\" in "+_registration.factory_name()+"."+_registration.class_name());
+			}
 		}
-    }
+		catch(const std::exception& e) {
+			throw std::runtime_error(std::string("Error initializing parameter '") + entry.first + "' in " + _registration.factory_name() + "." + _registration.class_name() + ": " + e.what());
+		}
+	}
 }
 
 void ClassParameter::_check_name(const std::string& name) const {

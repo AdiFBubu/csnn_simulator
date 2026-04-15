@@ -41,6 +41,30 @@ void TrainingSparseExecution::process(size_t refresh_interval) {
 			// Remove process sub-directory if no trained parameters saved (process not trainable)
 			rmdir(process_save_path.c_str());
 		}
+
+		// Save parameters for analyses attached to outputs for this process
+		for (size_t o = 0; o < _experiment.output_count(); ++o) {
+			if (_experiment.output_at(o).index() == i) {
+				Output &output = _experiment.output_at(o);
+				for (Analysis *analysis : output.analysis()) {
+
+                    std::string full_output_name = output.name();
+                    size_t last_dash_idx = full_output_name.find_last_of('-');
+                    std::string short_name = (last_dash_idx != std::string::npos)
+                                             ? full_output_name.substr(last_dash_idx + 1)
+                                             : full_output_name;
+                    std::string analysis_save_path = _experiment.model_path() + "/" + short_name + "." + analysis->class_name() + "/";
+
+					mkdir(analysis_save_path.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
+					bool a_saved = analysis->save_params(analysis_save_path);
+					if (a_saved) {
+						_experiment.log() << "Save analysis parameters at " << analysis_save_path << std::endl;
+					} else {
+						rmdir(analysis_save_path.c_str());
+					}
+				}
+			}
+		}
 	}
 
 	_train_set.clear();
