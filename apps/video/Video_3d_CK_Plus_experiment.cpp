@@ -33,7 +33,7 @@ int main(int argc, char **argv)
     size_t _filter_width = (argc > 1) ? atoi(argv[1]) : 5;
     size_t _filter_height = (argc > 2) ? atoi(argv[2]) : 5;
     size_t _filter_depth = (argc > 3) ? atoi(argv[3]) : 3;
-    size_t _temporal_sum_pooling = (argc > 4) ? atoi(argv[4]) : 3;
+    size_t _temporal_sum_pooling = (argc > 4) ? atoi(argv[4]) : 2;
     
     // Keep epochs and threshold unchanged
     int _epochs = (argc > 5) ? atoi(argv[5]) : 800;
@@ -43,7 +43,7 @@ int main(int argc, char **argv)
     unsigned int random_seed = (argc > 6) ? atoi(argv[6]) : 42;
     
     // Add spatial pooling parameter
-    size_t _spatial_pooling = (argc > 7) ? atoi(argv[7]) : 8;
+    size_t _spatial_pooling = (argc > 7) ? atoi(argv[7]) : 4;
     
     // Print parameters
     std::cout << "Random seed: " << random_seed << std::endl;
@@ -62,8 +62,8 @@ int main(int argc, char **argv)
     int num_folds = 10;
     
     // Video frame dimensions
-    size_t _frame_size_width = 48;
-    size_t _frame_size_height = 48;
+    size_t _frame_size_width = 112;
+    size_t _frame_size_height = 112;
 
     time_t start_time;
     time(&start_time);
@@ -170,8 +170,8 @@ int main(int argc, char **argv)
         conv1_out.add_analysis<analysis::Svm>("svm_probabilities");
 
 //        auto &conv2 = experiment.push<layer::Convolution3D>(
-//                3, 3, 5, filter_number, "", 1, 1, tmp_stride);
-//        conv2.set_name("conv1");
+//                3, 3, 3, 128, "", 1, 1, tmp_stride);
+//        conv2.set_name("conv2");
 //        conv2.parameter<bool>("draw").set(false);
 //        conv2.parameter<bool>("draw_feature_maps").set(false);
 //        conv2.parameter<bool>("save_weights").set(false);
@@ -182,17 +182,17 @@ int main(int argc, char **argv)
 //        conv2.parameter<uint32_t>("epoch").set(sampling_size);
 //        conv2.parameter<float>("annealing").set(0.95f);
 //        conv2.parameter<float>("min_th").set(1.0f);
-//        conv2.parameter<float>("t_obj").set(t_obj);
+//        conv2.parameter<float>("t_obj").set(t_obj + 0.2);
 //        conv2.parameter<float>("lr_th").set(th_lr);
 //        conv2.parameter<Tensor<float>>("w").distribution<distribution::Uniform>(0.0, 1.0);
-//        conv2.parameter<Tensor<float>>("th").distribution<distribution::Gaussian>(_th, 0.1);
+//        conv2.parameter<Tensor<float>>("th").distribution<distribution::Gaussian>(_th - 4, 0.1);
 //        conv2.parameter<STDP>("stdp").set<stdp::Biological>(w_lr, 0.1f);
-//        conv2.parameter<layer::ISampler3D>("sampler").set<layer::Sampler3DFacialPerFrame>();
+//        conv2.parameter<layer::ISampler3D>("sampler").set<layer::Sampler3DRandom>();
 //
 //        auto &conv2_out = experiment.output<TimeObjectiveOutput>(conv2, t_obj, 2);
-////        conv2_out.add_postprocessing<process::FeatureMaps>("FMs3D/");
-//        conv2_out.add_postprocessing<process::SumPooling>(_spatial_pooling, _spatial_pooling);
-//        conv2_out.add_postprocessing<process::TemporalPooling>(_temporal_sum_pooling);
+//        conv2_out.add_postprocessing<process::FeatureMaps>("FMs3D-layer2/");
+//        conv2_out.add_postprocessing<process::SumPooling>(_spatial_pooling / 2, _spatial_pooling / 2);
+//        conv2_out.add_postprocessing<process::TemporalPooling>(1);
 //        conv2_out.add_postprocessing<process::FeatureScaling>();
 //        conv2_out.add_analysis<analysis::Activity>();
 //        conv2_out.add_analysis<analysis::Coherence>();

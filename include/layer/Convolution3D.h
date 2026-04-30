@@ -129,6 +129,8 @@ namespace layer
         virtual bool load_params(const std::string& filename);
         virtual bool save_params(const std::string& filename);
 
+        void process_feature_maps(const std::string &label, const Tensor<float> &in, size_t current_index);
+
 	private:
 		uint32_t _epoch_number;
 		uint32_t _current_epoch_number;

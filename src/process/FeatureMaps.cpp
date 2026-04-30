@@ -48,7 +48,8 @@ void FeatureMaps::process_test(const std::string &label, Tensor<float> &sample)
 
 void FeatureMaps::_process(const std::string &label, const Tensor<float> &in) const
 {
-    if (label == "1_test" || label == "1_train") {
+    if (true) {
+//    if (label == "2_test" || label == "2_train") {
         // Use filesystem to build the path safely
         std::filesystem::path base_path = std::filesystem::current_path() / _file_prefix;
         std::filesystem::path folder_path = base_path / label;
