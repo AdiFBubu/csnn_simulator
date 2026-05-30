@@ -212,18 +212,31 @@ void Convolution3D::process_train_sample(const std::string &label, Tensor<float>
 		// do // take the random patches around places where a spike exists
 		// {
 
-        if (_sampler != nullptr) {
-            // Ask the interface for coordinates!
-            auto [sampled_x, sampled_y, sampled_t] = _sampler->sample_patch(
-                    current_index, // this is the video index
-                    input_width, input_height, input_conv_depth,
-                    _filter_width, _filter_height, _filter_conv_depth,
-                    experiment()->random_generator()
-            );
-            x = sampled_x;
-            y = sampled_y;
-            k = sampled_t;
-        } else {
+		if (_sampler != nullptr) {
+			// Ask the sampler for coordinates (input-aware sampler gets the tensor too)
+			if (auto* input_sampler = dynamic_cast<IInputAwareSampler3D*>(_sampler)) {
+				auto [sampled_x, sampled_y, sampled_t] = input_sampler->sample_patch_with_input(
+						current_index,
+						sample,
+						input_width, input_height, input_conv_depth,
+						_filter_width, _filter_height, _filter_conv_depth,
+						experiment()->random_generator()
+				);
+				x = sampled_x;
+				y = sampled_y;
+				k = sampled_t;
+			} else {
+				auto [sampled_x, sampled_y, sampled_t] = _sampler->sample_patch(
+						current_index, // this is the video index
+						input_width, input_height, input_conv_depth,
+						_filter_width, _filter_height, _filter_conv_depth,
+						experiment()->random_generator()
+				);
+				x = sampled_x;
+				y = sampled_y;
+				k = sampled_t;
+			}
+		} else {
             // Fallback safety logic if no sampler was attached
             if (_filter_width <= input_width)
             {

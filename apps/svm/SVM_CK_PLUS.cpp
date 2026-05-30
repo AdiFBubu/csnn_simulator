@@ -164,8 +164,8 @@ int main(int argc, char **argv)
 
             // add another SVM step to classify the fused result.
             auto &svm_out = experiment.output<NoOutputConversion>(svm);
-            svm_out.add_postprocessing<process::SumPooling>(10, 10);
-//            svm_out.add_postprocessing<process::TemporalPooling>(2);
+            svm_out.add_postprocessing<process::SumPooling>(_spatial_pooling, _spatial_pooling);
+            svm_out.add_postprocessing<process::TemporalPooling>(_temporal_sum_pooling);
             svm_out.add_analysis<analysis::Svm>();
 
             experiment.run(10000);

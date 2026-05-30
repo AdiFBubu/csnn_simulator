@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "ClassParameter.h"
+#include "Tensor.h"
 
 namespace layer {
 
@@ -40,6 +41,24 @@ namespace layer {
                 size_t filter_w, size_t filter_h, size_t filter_t,
                 std::default_random_engine& rng) = 0;
     };
+
+        // Input-aware sampler interface (can inspect the input tensor)
+        class IInputAwareSampler3D : public ISampler3D {
+        public:
+
+        template<class T, class Factory>
+        IInputAwareSampler3D(const RegisterClassParameter<T, Factory>& registration)
+            : ISampler3D(registration) {}
+
+        virtual ~IInputAwareSampler3D() = default;
+
+        virtual std::tuple<size_t, size_t, size_t> sample_patch_with_input(
+            size_t video_index,
+            const Tensor<float>& sample,
+            size_t input_width, size_t input_height, size_t input_time,
+            size_t filter_w, size_t filter_h, size_t filter_t,
+            std::default_random_engine& rng) = 0;
+        };
 
     // Random baseline sampler
     class Sampler3DRandom : public ISampler3D {
@@ -110,6 +129,38 @@ namespace layer {
 
         std::tuple<size_t, size_t, size_t> sample_patch(
                 size_t video_index,
+                size_t input_width, size_t input_height, size_t input_time,
+                size_t filter_w, size_t filter_h, size_t filter_t,
+                std::default_random_engine& rng) override;
+    };
+
+    // Input-aware sampler based on ON/OFF saliency
+    class Sampler3DOnOffSaliency : public IInputAwareSampler3D {
+    private:
+        std::vector<std::vector<BBox>> _video_frame_bboxes;
+        float _random_mix;
+        bool _latency_coding;
+        bool _use_bboxes;
+
+        float _pixel_saliency(const Tensor<float>& sample, size_t x, size_t y, size_t k, size_t depth) const;
+        void _get_roi(size_t video_index, size_t frame_index,
+                      size_t input_width, size_t input_height,
+                      size_t& x_min, size_t& x_max,
+                      size_t& y_min, size_t& y_max) const;
+
+    public:
+        Sampler3DOnOffSaliency();
+        void add_sequence_bboxes(const std::vector<BBox>& bboxes) override;
+
+        std::tuple<size_t, size_t, size_t> sample_patch(
+                size_t video_index,
+                size_t input_width, size_t input_height, size_t input_time,
+                size_t filter_w, size_t filter_h, size_t filter_t,
+                std::default_random_engine& rng) override;
+
+        std::tuple<size_t, size_t, size_t> sample_patch_with_input(
+                size_t video_index,
+                const Tensor<float>& sample,
                 size_t input_width, size_t input_height, size_t input_time,
                 size_t filter_w, size_t filter_h, size_t filter_t,
                 std::default_random_engine& rng) override;

@@ -23,8 +23,11 @@
 #include "process/LateFusion.h"
 #include "process/SeparateSign.h"
 #include "process/MaxScaling.h"
+#include "process/DistributionAnalysis.h"
+#include "process/ReorderSpikes.h"
 #include "layer/Sampler3D.h"
 #include "process/FeatureMaps.h"
+#include "execution/TestingSparseExecution.h"
 #include <deque>
 #include <sstream>
 #include <opencv2/highgui.hpp>
@@ -79,17 +82,17 @@ int main(int argc, char **argv)
     size_t _filter_width = (argc > 1) ? atoi(argv[1]) : 5;
     size_t _filter_height = (argc > 2) ? atoi(argv[2]) : 5;
     size_t _filter_depth = (argc > 3) ? atoi(argv[3]) : 3;
-    size_t _temporal_sum_pooling = (argc > 4) ? atoi(argv[4]) : 3;
+    size_t _temporal_sum_pooling = (argc > 4) ? atoi(argv[4]) : 2;
 
     // Keep epochs and threshold unchanged
     int _epochs = (argc > 5) ? atoi(argv[5]) : 800;
-    float _th = 8.0;
+    float _th = 4.0;
 
     // Add random seed parameter
     unsigned int random_seed = (argc > 6) ? atoi(argv[6]) : 42;
 
     // Add spatial pooling parameter
-    size_t _spatial_pooling = (argc > 7) ? atoi(argv[7]) : 8;
+    size_t _spatial_pooling = (argc > 7) ? atoi(argv[7]) : 4;
 
     // Print parameters
     std::cout << "Random seed: " << random_seed << std::endl;
@@ -218,15 +221,17 @@ int main(int argc, char **argv)
                 try {
                     // Adăugăm un pointer de timp la instanță pentru loguri unice (opțional, dar recomandat)
                     std::string _dataset = "TCP_" + std::to_string(time(nullptr)) + "_3D_" + std::to_string(_filter_width) + "x" + std::to_string(_filter_height) + "x" + std::to_string(_filter_depth);
-                    Experiment<TestingExecution> experiment(argc, argv, _dataset);
+                    Experiment<TestingSparseExecution> experiment(argc, argv, _dataset);
 
                     // build the same preprocessing + layer as live
-                    experiment.push<process::DefaultOnOffFilter>(7, 0.35, 5.0);
-                    experiment.push<process::FeatureMaps>("Debug_Preprocess/");
+                    experiment.push<process::DefaultOnOffFilter>(7, 0.1, 1.0);
+                    // experiment.push<process::FeatureMaps>("Debug_Preprocess/");
                     experiment.push<process::MaxScaling>();
                     experiment.push<LatencyCoding>();
 
-                    float t_obj = 0.65;
+                    // experiment.push<process::DistributionAnalysis>();
+
+                    float t_obj = 0.80;
                     float th_lr = 0.09f;
                     float w_lr = 0.009f;
 
@@ -243,7 +248,7 @@ int main(int argc, char **argv)
                     conv1.parameter<bool>("save_random_start").set(false);
                     conv1.parameter<bool>("log_spiking_neuron").set(false);
                     conv1.parameter<bool>("inhibition").set(true);
-                    conv1.parameter<bool>("wta_infer").set(true);
+                    conv1.parameter<bool>("wta_infer").set(false);
                     conv1.parameter<uint32_t>("epoch").set(sampling_size);
                     conv1.parameter<float>("annealing").set(0.95f);
                     conv1.parameter<float>("min_th").set(1.0f);
@@ -252,16 +257,19 @@ int main(int argc, char **argv)
                     conv1.parameter<Tensor<float>>("w").distribution<distribution::Uniform>(0.0, 1.0);
                     conv1.parameter<Tensor<float>>("th").distribution<distribution::Gaussian>(_th, 0.1);
                     conv1.parameter<STDP>("stdp").set<stdp::Biological>(w_lr, 0.1f);
-                    conv1.parameter<layer::ISampler3D>("sampler").set<layer::Sampler3DFacialPerFrame>();
+                    conv1.parameter<layer::ISampler3D>("sampler").set<layer::Sampler3DLandmark>();
 
-                    auto &conv1_out = experiment.output<TimeObjectiveOutput>(conv1, t_obj, 2);
-                    conv1_out.add_postprocessing<process::FeatureMaps>("FMs3D/");
+                    auto &conv1_out = experiment.output<TimeObjectiveOutput>(conv1, t_obj, 1);
                     conv1_out.add_postprocessing<process::SumPooling>(_spatial_pooling, _spatial_pooling);
                     conv1_out.add_postprocessing<process::TemporalPooling>(_temporal_sum_pooling);
                     conv1_out.add_postprocessing<process::FeatureScaling>();
                     conv1_out.add_analysis<analysis::Activity>();
                     conv1_out.add_analysis<analysis::Coherence>();
-                    conv1_out.add_analysis<analysis::Svm>();
+                    conv1_out.add_analysis<analysis::Svm>("svm_probabilities");
+
+                    // experiment.push<process::DistributionAnalysis>();
+                    // experiment.push<process::ReorderSpikes>(t_obj, 0.1);
+                    // experiment.push<process::DistributionAnalysis>();
 
                     // load pretrained params if available
                     // for (size_t i = 0; i < experiment.process_number(); i++) { ... }
@@ -287,27 +295,27 @@ int main(int argc, char **argv)
                     // extract probabilities from SVM analysis (if exists) and send as JSON
                     std::map<std::string, double> probs;
 
-// Generator de numere aleatorii între 0.0 și 1.0
-                    std::random_device rd;
-                    std::mt19937 gen(rd());
-                    std::uniform_real_distribution<> dis(0.0, 1.0);
-
-// Definirea celor 7 etichete (labels)
-                    std::vector<std::string> labels = {
-                            "anger", "disgust", "fear", "happiness", "sadness", "surprise", "contempt"
-                    };
-
-                    for (const auto& label : labels) {
-                        probs[label] = dis(gen);
-                    }
-
-//                    for (Analysis* a : conv1_out.analysis()) {
-//                        analysis::Svm* svm_a = dynamic_cast<analysis::Svm*>(a);
-//                        if (svm_a) {
-//                            probs = svm_a->get_probabilities();
-//                            break;
-//                        }
+//// Generator de numere aleatorii între 0.0 și 1.0
+//                    std::random_device rd;
+//                    std::mt19937 gen(rd());
+//                    std::uniform_real_distribution<> dis(0.0, 1.0);
+//
+//// Definirea celor 7 etichete (labels)
+//                    std::vector<std::string> labels = {
+//                            "anger", "disgust", "fear", "happiness", "sadness", "surprise", "contempt"
+//                    };
+//
+//                    for (const auto& label : labels) {
+//                        probs[label] = dis(gen);
 //                    }
+
+                    for (Analysis* a : conv1_out.analysis()) {
+                        analysis::Svm* svm_a = dynamic_cast<analysis::Svm*>(a);
+                        if (svm_a) {
+                            probs = svm_a->get_probabilities();
+                            break;
+                        }
+                    }
 
                     if (!probs.empty()) {
                         std::ostringstream ss;

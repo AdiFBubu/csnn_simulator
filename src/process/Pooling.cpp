@@ -95,13 +95,11 @@ static RegisterClassParameter<SumPooling, ProcessFactory> _registerSum("SumPooli
 SumPooling::SumPooling() : UniquePassProcess(_registerSum),
 						   _target_width(0), _target_height(0), _width(0), _height(0), _depth(0)
 {
-	add_parameter("width", _target_width);
-	add_parameter("height", _target_height);
 }
 
 SumPooling::SumPooling(size_t target_width, size_t target_height) : SumPooling() {
-	parameter<size_t>("width").set(target_width);
-	parameter<size_t>("height").set(target_height);
+    _target_height = target_height;
+    _target_width = target_width;
 }
 
 Shape SumPooling::compute_shape(const Shape &shape)

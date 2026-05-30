@@ -67,7 +67,7 @@ int main(int argc, char **argv)
 
     // Video frame dimensions
     size_t _frame_size_width = 48;
-    size_t _frame_size_height = 48
+    size_t _frame_size_height = 48;
     ;
 
     time_t start_time;
@@ -84,9 +84,9 @@ int main(int argc, char **argv)
                                std::to_string(fold) + "_epochs" + std::to_string(_epochs) +
                                "_seed" + std::to_string(random_seed);
 
-        Experiment<SparseIntermediateExecution> experiment(argc, argv, _dataset);
+//        Experiment<SparseIntermediateExecution> experiment(argc, argv, _dataset);
 //        Experiment<TrainingSparseExecution> experiment(argc, argv, _dataset);
-//        Experiment<TestingSparseExecution> experiment(argc, argv, _dataset);
+        Experiment<TestingSparseExecution> experiment(argc, argv, _dataset);
 
         // Load CK+ dataset with paths from environment variables and use the command line random_seed
         dataset::CK_Plus ck_plus(csv_path, images_dir, num_folds, random_seed,
@@ -98,7 +98,7 @@ int main(int argc, char **argv)
         else {
             experiment.log() << "CK+ dataset loaded successfully" << std::endl;
         }
-
+        
         // Get training and testing sequences for this fold
         auto training_sequences = ck_plus.getTrainingSequences(fold);
         auto testing_sequences = ck_plus.getTestSequences(fold);
@@ -123,7 +123,7 @@ int main(int argc, char **argv)
         }
 
         // Network parameters - use the parameterized values
-        size_t filter_number = 32;
+        size_t filter_number = 64;
         size_t tmp_stride = 1;
 
         size_t sampling_size = _epochs;
@@ -131,7 +131,7 @@ int main(int argc, char **argv)
         // Preprocessing
         experiment.push<process::DefaultOnOffFilter>(7, 0.1, 1.0);
 
-        // Doar pentru debug, să vezi imaginea după OnOffFilter
+        // Doar pentru debug, sa vezi imaginea dupa OnOffFilter
         experiment.push<process::FeatureMaps>("Debug_Preprocess/");
 
         experiment.push<process::MaxScaling>();
@@ -143,7 +143,7 @@ int main(int argc, char **argv)
 
 
         // Network parameters
-        float t_obj = 0.80;
+        float t_obj = (argc > 8) ? atof(argv[8]) : 0.80f;
         float th_lr = 0.09f;
         float w_lr = 0.009f;
 
@@ -170,7 +170,7 @@ int main(int argc, char **argv)
 
         // Setup output
         auto &conv1_out = experiment.output<TimeObjectiveOutput>(conv1, t_obj, 1);
-        conv1_out.add_postprocessing<process::FeatureMaps>("FMs3D/");
+        //conv1_out.add_postprocessing<process::FeatureMaps>("FMs3D/");
         conv1_out.add_postprocessing<process::SumPooling>(_spatial_pooling, _spatial_pooling);
         conv1_out.add_postprocessing<process::TemporalPooling>(_temporal_sum_pooling);
         conv1_out.add_postprocessing<process::FeatureScaling>();

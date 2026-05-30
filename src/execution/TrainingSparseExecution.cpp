@@ -135,6 +135,30 @@ void TrainingSparseExecution::_process_output(size_t index) {
 				_process_train_data(*process, output_train_set, std::numeric_limits<size_t>::max());
 			}
 
+			if (!output.postprocessing().empty()) {
+				std::string full_output_name = output.name();
+				size_t last_dash_idx = full_output_name.find_last_of('-');
+				std::string short_name = (last_dash_idx != std::string::npos)
+						? full_output_name.substr(last_dash_idx + 1)
+						: full_output_name;
+
+				for (Process* process : output.postprocessing()) {
+					std::string post_name = short_name + ".post." + process->class_name();
+					if (!process->name().empty()) {
+						post_name += "." + process->name();
+					}
+					std::string post_save_path = _experiment.model_path() + "/" + post_name + "/";
+
+					mkdir(post_save_path.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
+					bool p_saved = process->save_params(post_save_path);
+					if (p_saved) {
+						_experiment.log() << "Save postprocess parameters at " << post_save_path << std::endl;
+					} else {
+						rmdir(post_save_path.c_str());
+					}
+				}
+			}
+
 			for(Analysis* analysis : output.analysis()) {
 
 				_experiment.log() << output.name() << ", analysis " << analysis->class_name() << ":" << std::endl;

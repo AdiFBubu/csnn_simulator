@@ -101,6 +101,23 @@ void TestingSparseExecution::_process_output(size_t index) {
 			}
 
 			for(Process* process : output.postprocessing()) {
+				std::string full_output_name = output.name();
+				size_t last_dash_idx = full_output_name.find_last_of('-');
+				std::string short_name = (last_dash_idx != std::string::npos)
+						? full_output_name.substr(last_dash_idx + 1)
+						: full_output_name;
+				std::string post_name = short_name + ".post." + process->class_name();
+				if (!process->name().empty()) {
+					post_name += "." + process->name();
+				}
+				std::string post_load_path = _experiment.model_path() + "/" + post_name + "/";
+				bool p_loaded = process->load_params(post_load_path);
+				if (p_loaded) {
+					_experiment.log() << "Load postprocess parameters at " << post_load_path << std::endl;
+				} else {
+					_experiment.log() << "No postprocess parameters found at " << post_load_path << std::endl;
+				}
+
 				_experiment.print() << "Process " << process->class_name() << std::endl;
 				_process_test_data(*process, output_test_set);
 			}

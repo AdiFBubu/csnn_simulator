@@ -598,9 +598,34 @@ void CK_Plus::printEmotionDistribution() const {
         }
     }
 
-    // Remove the detailed table output - just print a summary with seed info
     std::cout << "Dataset loaded: " << grand_total << " sequences across "
               << m_num_folds << " folds (using seed: " << m_random_seed << ")" << std::endl;
+
+    std::cout << "Emotion distribution per fold:" << std::endl;
+    std::cout << std::setw(6) << "Fold";
+    for (int emotion = 1; emotion <= getNumEmotions(); emotion++) {
+        std::string name = getEmotionName(emotion);
+        if (name.size() > 9) name = name.substr(0, 9);
+        std::cout << std::setw(10) << name;
+    }
+    std::cout << std::setw(8) << "Total" << std::endl;
+
+    for (int fold = 1; fold <= m_num_folds; fold++) {
+        std::cout << std::setw(6) << fold;
+        int fold_total = 0;
+        for (int emotion = 1; emotion <= getNumEmotions(); emotion++) {
+            int count = counts[fold][emotion];
+            fold_total += count;
+            std::cout << std::setw(10) << count;
+        }
+        std::cout << std::setw(8) << fold_total << std::endl;
+    }
+
+    std::cout << std::setw(6) << "Total";
+    for (int emotion = 1; emotion <= getNumEmotions(); emotion++) {
+        std::cout << std::setw(10) << emotion_totals[emotion];
+    }
+    std::cout << std::setw(8) << grand_total << std::endl;
 }
 
 std::shared_ptr<Spike> CK_Plus::sequenceToSpike(const ImageSequence& seq) {

@@ -67,7 +67,7 @@ public:
     std::vector<ImageSequence> getTestSequences(int test_fold);
     
     // Helper functions
-    int getNumEmotions() const { return 6; }
+    int getNumEmotions() const { return static_cast<int>(SURPRISE); }
     int getNumFolds() const { return m_num_folds; }
     unsigned int getRandomSeed() const { return m_random_seed; }
     std::map<int, std::map<int, int>> getEmotionCounts() const;
